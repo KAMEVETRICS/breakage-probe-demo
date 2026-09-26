@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f2eee6;
+  --sheet: #fffcf7;
+  --ink: #1b1814;
+  --muted: #5b5348;
+  --line: #d7cec0;
+  --accent: #9a3412;
+  --pass: #0f6b3c;
+  --pass-bg: #d9eee1;
+  --fail: #9b1c1c;
+  --fail-bg: #f8e2e2;
+  --warn: #92400e;
+  --warn-bg: #f6e7c8;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-pass: var(--pass);
+  --color-pass-bg: var(--pass-bg);
+  --color-fail: var(--fail);
+  --color-fail-bg: var(--fail-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}

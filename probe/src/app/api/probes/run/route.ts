@@ -28,11 +28,18 @@ function baseUrlFrom(request: Request) {
   return `${proto}://${host}`;
 }
 
-async function probeCart(baseUrl: string): Promise<AgentResult> {
+function probeHeaders(fixes: string[]) {
+  return {
+    "Content-Type": "application/json",
+    "x-probe-fixes": fixes.join(","),
+  };
+}
+
+async function probeCart(baseUrl: string, fixes: string[]): Promise<AgentResult> {
   const started = Date.now();
   const response = await fetch(`${baseUrl}/api/cart/total`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: probeHeaders(fixes),
     body: JSON.stringify({
       items: [
         { id: "1", price: 10, qty: 2 },
@@ -67,11 +74,11 @@ async function probeCart(baseUrl: string): Promise<AgentResult> {
   };
 }
 
-async function probeAuth(baseUrl: string): Promise<AgentResult> {
+async function probeAuth(baseUrl: string, fixes: string[]): Promise<AgentResult> {
   const started = Date.now();
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: probeHeaders(fixes),
     body: JSON.stringify({ email: "buyer@demo.test", password: "ship" }),
   });
   const data = (await response.json()) as { ok?: boolean };
@@ -101,9 +108,11 @@ async function probeAuth(baseUrl: string): Promise<AgentResult> {
   };
 }
 
-async function probeSearch(baseUrl: string): Promise<AgentResult> {
+async function probeSearch(baseUrl: string, fixes: string[]): Promise<AgentResult> {
   const started = Date.now();
-  const response = await fetch(`${baseUrl}/api/search?q=&category=kitchen`);
+  const response = await fetch(`${baseUrl}/api/search?q=&category=kitchen`, {
+    headers: probeHeaders(fixes),
+  });
   const data = (await response.json()) as {
     count?: number;
     results?: { category: string }[];
@@ -140,11 +149,15 @@ async function probeSearch(baseUrl: string): Promise<AgentResult> {
 
 export async function POST(request: Request) {
   try {
+    const body = (await request.json().catch(() => ({}))) as { fixes?: unknown };
+    const fixes = Array.isArray(body.fixes)
+      ? body.fixes.filter((item): item is string => typeof item === "string")
+      : [];
     const baseUrl = baseUrlFrom(request);
     const agents = await Promise.all([
-      probeCart(baseUrl),
-      probeAuth(baseUrl),
-      probeSearch(baseUrl),
+      probeCart(baseUrl, fixes),
+      probeAuth(baseUrl, fixes),
+      probeSearch(baseUrl, fixes),
     ]);
     const findings = agents.reduce((sum, agent) => sum + agent.findings.length, 0);
     const failed = agents.filter((agent) => agent.status === "failed").length;
@@ -155,6 +168,7 @@ export async function POST(request: Request) {
         generatedAt: new Date().toISOString(),
         source: "api/probes/run",
         appBaseUrl: baseUrl,
+        fixes,
         summary: {
           agents: agents.length,
           passed: agents.length - failed,

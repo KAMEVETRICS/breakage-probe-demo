@@ -11,13 +11,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").toLowerCase();
   const category = searchParams.get("category");
+  const fixed = (request.headers.get("x-probe-fixes") ?? "").split(",").includes("search");
 
-  // Planted bug: category filter is read and then ignored.
-  void category;
-
-  const results = CATALOG.filter((item) =>
-    q ? item.name.toLowerCase().includes(q) : true,
-  );
+  const results = CATALOG.filter((item) => {
+    if (q && !item.name.toLowerCase().includes(q)) return false;
+    if (fixed && category && item.category !== category) return false;
+    return true;
+  });
 
   return NextResponse.json({
     q,

@@ -4,7 +4,7 @@ A sample storefront with three functional bugs, and a dashboard that checks thos
 
 The cart route adds each price once and ignores quantity, so two items at $10 and one at $15 come back as $25 instead of $35. The login route accepts any prefix of the sample password `shipit-now`, so `ship` signs in. The search route reads `category` and then discards it, so `category=kitchen` returns all four products.
 
-The dashboard runs those three checks together and lists each failure with the request, the expected value, and the actual value. IBM Bob can launch the same three probes as parallel subagents. The skill for that is `probe/skills/breakage-probe/SKILL.md`.
+The dashboard runs those three checks together and lists each failure with the request, the expected value, and the actual value. Check a fix, run the probes again, and the lane that changed goes green or returns to red. IBM Bob can launch the same three probes as parallel subagents. The skill for that is `probe/skills/breakage-probe/SKILL.md`.
 
 ## Run locally
 

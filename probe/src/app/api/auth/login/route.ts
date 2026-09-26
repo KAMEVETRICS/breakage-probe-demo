@@ -9,12 +9,13 @@ export async function POST(request: Request) {
   const body = (await request.json()) as { email?: string; password?: string };
   const email = body.email?.trim() ?? "";
   const password = body.password ?? "";
+  const fixed = (request.headers.get("x-probe-fixes") ?? "").split(",").includes("auth");
 
-  // Planted bug: any password prefix of length >= 4 unlocks the account.
   const accepted =
     email === ACCOUNT.email &&
-    password.length >= 4 &&
-    ACCOUNT.password.startsWith(password);
+    (fixed
+      ? password === ACCOUNT.password
+      : password.length >= 4 && ACCOUNT.password.startsWith(password));
 
   if (!accepted) {
     return NextResponse.json(

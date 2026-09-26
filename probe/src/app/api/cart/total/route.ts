@@ -9,9 +9,12 @@ type CartItem = {
 export async function POST(request: Request) {
   const body = (await request.json()) as { items?: CartItem[] };
   const items = body.items ?? [];
+  const fixed = (request.headers.get("x-probe-fixes") ?? "").split(",").includes("cart");
 
-  // Planted bug: quantity is ignored, so multi-qty carts undercharge.
-  const total = items.reduce((sum, item) => sum + Number(item.price), 0);
+  const total = items.reduce(
+    (sum, item) => sum + (fixed ? Number(item.price) * Number(item.qty) : Number(item.price)),
+    0,
+  );
 
   return NextResponse.json({
     total,

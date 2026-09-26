@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const FIXES = [
+  { id: "cart", label: "Fix cart total" },
+  { id: "auth", label: "Fix login" },
+  { id: "search", label: "Fix search filter" },
+] as const;
+
+const STORAGE_KEY = "probe-fixes";
 
 type Finding = {
   id: string;
@@ -25,6 +33,7 @@ export type Report = {
   generatedAt: string;
   source: string;
   appBaseUrl: string;
+  fixes?: string[];
   summary: {
     agents: number;
     passed: number;
@@ -40,20 +49,56 @@ function statusClass(status: string) {
     : "border-fail bg-fail-bg text-fail";
 }
 
+function laneChange(before: Report | null, after: Report | null, id: string) {
+  const previous = before?.agents.find((agent) => agent.id === id);
+  const current = after?.agents.find((agent) => agent.id === id);
+  if (!previous || !current || previous.status === current.status) return "";
+  if (current.status === "passed") return "This lane was failing. It passes with the fixes now on.";
+  return "This lane was passing. It fails with the fixes now on.";
+}
+
 export function ReportView({ initialReport }: { initialReport: Report | null }) {
   const [report, setReport] = useState(initialReport);
+  const [previous, setPrevious] = useState<Report | null>(null);
+  const [fixes, setFixes] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as unknown;
+      if (Array.isArray(parsed)) {
+        setFixes(parsed.filter((item): item is string => typeof item === "string"));
+      }
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  function toggleFix(id: string) {
+    setFixes((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
   async function run() {
     setRunning(true);
     setError("");
     try {
-      const response = await fetch("/api/probes/run", { method: "POST" });
+      const response = await fetch("/api/probes/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fixes }),
+      });
       const data = (await response.json()) as { ok?: boolean; error?: string; report?: Report };
       if (!response.ok || !data.ok || !data.report) {
         throw new Error(data.error ?? "Probe run failed");
       }
+      setPrevious(report);
       setReport(data.report);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Probe run failed");
@@ -64,6 +109,21 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
 
   return (
     <>
+      <fieldset className="mb-4 w-full border border-line bg-sheet p-4">
+        <legend className="px-1 text-sm font-semibold">Apply a fix, then run the probes again</legend>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+          {FIXES.map((fix) => (
+            <label key={fix.id} className="inline-flex min-h-11 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={fixes.includes(fix.id)}
+                onChange={() => toggleFix(fix.id)}
+              />
+              {fix.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <button
         type="button"
         onClick={run}
@@ -123,6 +183,9 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
                     {agent.mode}
                     {agent.durationMs != null ? ` · ${agent.durationMs} ms` : ""}
                   </p>
+                  {laneChange(previous, report, agent.id) ? (
+                    <p className="mt-2 text-sm font-semibold">{laneChange(previous, report, agent.id)}</p>
+                  ) : null}
                   {agent.findings.length === 0 ? (
                     <p className="mt-3 text-pass">No breakages in this lane.</p>
                   ) : (

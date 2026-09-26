@@ -19,12 +19,27 @@ export default function DemoPage() {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [error, setError] = useState("");
 
+  function fixHeaders() {
+    let value = "";
+    try {
+      const saved = window.localStorage.getItem("probe-fixes");
+      const parsed = saved ? (JSON.parse(saved) as unknown) : [];
+      if (Array.isArray(parsed)) value = parsed.join(",");
+    } catch {
+      value = "";
+    }
+    return {
+      "Content-Type": "application/json",
+      "x-probe-fixes": value,
+    };
+  }
+
   async function runCart() {
     setError("");
     try {
       const response = await fetch("/api/cart/total", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fixHeaders(),
         body: JSON.stringify({
           items: [
             { id: "1", price: 10, qty: 2 },
@@ -45,7 +60,7 @@ export default function DemoPage() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: fixHeaders(),
         body: JSON.stringify({ email: "buyer@demo.test", password }),
       });
       const data = (await response.json()) as { ok?: boolean; error?: string };
@@ -65,6 +80,7 @@ export default function DemoPage() {
     try {
       const response = await fetch(
         `/api/search?q=&category=${encodeURIComponent(category)}`,
+        { headers: fixHeaders() },
       );
       const data = (await response.json()) as { results: SearchHit[] };
       setHits(data.results);
@@ -77,6 +93,9 @@ export default function DemoPage() {
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <p className="text-sm uppercase tracking-wide text-muted">Target app</p>
       <h1 className="mt-1 text-3xl font-semibold">Demo storefront with planted bugs</h1>
+      <p className="mt-2 max-w-2xl text-muted">
+        Fixes checked on the dashboard apply here too, in this browser.
+      </p>
       <p className="mt-2 max-w-2xl text-muted">
         Use these flows as the system under test. Breakage Probe&apos;s parallel agents
         hit the same APIs. Expected correct behavior is written next to each control.

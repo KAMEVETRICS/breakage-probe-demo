@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-27T11:17:23.641Z",
-  "source": "api/probes/run",
+  "generatedAt": "2026-09-26T00:00:00.000Z",
+  "source": "bob-parallel-subagents",
   "appBaseUrl": "http://127.0.0.1:3000",
   "fixes": [],
   "summary": {
@@ -16,7 +16,6 @@
       "name": "Cart Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": 23,
       "findings": [
         {
           "id": "CART-001",
@@ -25,8 +24,10 @@
           "endpoint": "POST /api/cart/total",
           "expected": "2×$10 + 1×$15 = $35",
           "actual": "total returned 25",
+          "bug": "The reduce accumulator adds only item.price instead of item.price * item.qty, so quantities are ignored and the total is understated.",
+          "file": "src/app/api/cart/total/route.ts",
           "repro": [
-            "POST /api/cart/total with { items: [{price:10,qty:2},{price:15,qty:1}] }",
+            "POST /api/cart/total with { items: [{id:'1',price:10,qty:2},{id:'2',price:15,qty:1}] }",
             "Observe total === 25 instead of 35"
           ]
         }
@@ -37,15 +38,16 @@
       "name": "Auth Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": 23,
       "findings": [
         {
           "id": "AUTH-001",
           "severity": "critical",
           "title": "Partial password is accepted",
           "endpoint": "POST /api/auth/login",
-          "expected": "Only the full password shipit-now should authenticate",
-          "actual": "password ship returned ok:true",
+          "expected": "Only the full password 'shipit-now' should authenticate",
+          "actual": "password 'ship' returned ok:true",
+          "bug": "Password check uses ACCOUNT.password.startsWith(password) — any prefix ≥4 chars (e.g. 'ship') is accepted instead of requiring an exact match.",
+          "file": "src/app/api/auth/login/route.ts",
           "repro": [
             "POST /api/auth/login with email buyer@demo.test and password ship",
             "Observe 200 with ok:true"
@@ -58,18 +60,19 @@
       "name": "Search Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": 20,
       "findings": [
         {
           "id": "SEARCH-001",
           "severity": "medium",
           "title": "Category filter is ignored",
           "endpoint": "GET /api/search",
-          "expected": "category=kitchen returns 2 kitchen items",
-          "actual": "returned 4 items",
+          "expected": "category=kitchen returns 2 kitchen items only",
+          "actual": "4 items returned (2 gear + 2 kitchen)",
+          "bug": "Category filtering is gated on hasFix(request, 'search'), so the category query param is ignored unless the fix flag is active.",
+          "file": "src/app/api/search/route.ts",
           "repro": [
             "GET /api/search?q=&category=kitchen",
-            "Observe gear items present or count !== 2"
+            "Observe 4 items returned including gear items"
           ]
         }
       ]

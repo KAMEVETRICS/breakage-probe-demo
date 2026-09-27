@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   const ownHost = new URL(request.url).host;
-  if (!allowedTarget(target, ownHost)) {
+  if (!(await allowedTarget(target, ownHost))) {
     return NextResponse.json(
       { ok: false, error: "That host is not available for research." },
       { status: 400 },

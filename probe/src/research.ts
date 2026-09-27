@@ -1,3 +1,6 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+
 const LINK_CAP = 6;
 const BODY_CAP = 100_000;
 
@@ -14,12 +17,21 @@ export type ResearchReport = {
   skipped: string[];
 };
 
-export function allowedTarget(target: URL, ownHost: string) {
+export async function allowedTarget(target: URL, ownHost: string) {
   if (target.protocol !== "http:" && target.protocol !== "https:") return false;
   if (target.host === ownHost) return true;
   const ownName = ownHost.replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
   if (loopback(target.hostname) && loopback(ownName)) return true;
-  return !privateHost(target.hostname);
+  if (privateHost(target.hostname)) return false;
+  // A public-looking name can still point at a private address, so check what it resolves to.
+  const name = target.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(name)) return true;
+  try {
+    const addresses = await lookup(name, { all: true });
+    return addresses.length > 0 && addresses.every((entry) => !privateHost(entry.address));
+  } catch {
+    return false;
+  }
 }
 
 export function linksOnPage(html: string, pageUrl: string) {
@@ -119,9 +131,14 @@ function loopback(hostname: string) {
 }
 
 function privateHost(hostname: string) {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  let host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
-  if (host === "0.0.0.0" || host === "::1" || host === "169.254.169.254") return true;
+  if (host.includes(":")) {
+    const mapped = mappedIPv4(host);
+    if (!mapped) return privateIPv6(host);
+    host = mapped;
+  }
+  if (host === "0.0.0.0" || host === "169.254.169.254") return true;
   const parts = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host);
   if (!parts) return false;
   const a = Number(parts[1]);
@@ -130,7 +147,29 @@ function privateHost(hostname: string) {
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a >= 224) return true;
   return false;
+}
+
+function privateIPv6(host: string) {
+  if (host === "::" || host === "::1") return true;
+  const first = parseInt(host.split(":")[0] || "0", 16);
+  if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
+  if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
+  return false;
+}
+
+// ::ffff:a.b.c.d or ::ffff:7f00:1 -> "a.b.c.d"
+function mappedIPv4(host: string) {
+  const dotted = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(host);
+  if (dotted) return dotted[1];
+  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(host);
+  if (!hex) return null;
+  const high = parseInt(hex[1], 16);
+  const low = parseInt(hex[2], 16);
+  return [high >> 8, high & 255, low >> 8, low & 255].join(".");
 }
 
 async function fetchPage(url: string) {

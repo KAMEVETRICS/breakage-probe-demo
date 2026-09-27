@@ -22,11 +22,24 @@ type AgentResult = {
   findings: Finding[];
 };
 
+// The Host header is client-controlled, so only probe this deployment's own
+// Vercel hostnames, or loopback in local dev. Anything else would let a caller
+// point the server's requests at a host of their choosing.
+const OWN_HOSTS = new Set(
+  [
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.VERCEL_URL,
+  ].filter((host): host is string => Boolean(host)),
+);
+
 function baseUrlFrom(request: Request) {
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const proto = request.headers.get("x-forwarded-proto") ?? "http";
   if (!host) return "http://127.0.0.1:3000";
-  return `${proto}://${host}`;
+  if (OWN_HOSTS.has(host)) return `https://${host}`;
+  const name = host.replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
+  if (name === "localhost" || name === "127.0.0.1" || name === "::1") return `http://${host}`;
+  return null;
 }
 
 async function probeCart(baseUrl: string, fixes: FixId[]): Promise<AgentResult> {
@@ -146,6 +159,12 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as { fixes?: unknown };
     const fixes = parseFixes(body.fixes);
     const baseUrl = baseUrlFrom(request);
+    if (!baseUrl) {
+      return NextResponse.json(
+        { ok: false, error: "Probes only run against this app's own host." },
+        { status: 400 },
+      );
+    }
     const agents = await Promise.all([
       probeCart(baseUrl, fixes),
       probeAuth(baseUrl, fixes),

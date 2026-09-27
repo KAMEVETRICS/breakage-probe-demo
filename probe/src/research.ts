@@ -17,6 +17,8 @@ export type ResearchReport = {
 export function allowedTarget(target: URL, ownHost: string) {
   if (target.protocol !== "http:" && target.protocol !== "https:") return false;
   if (target.host === ownHost) return true;
+  const ownName = ownHost.replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
+  if (loopback(target.hostname) && loopback(ownName)) return true;
   return !privateHost(target.hostname);
 }
 
@@ -59,34 +61,45 @@ export function pageNote(url: string, status: number, html: string): PageNote {
 }
 
 export async function readResearch(pageUrl: string): Promise<ResearchReport> {
-  const mainRead = await fetchPage(pageUrl);
-  const final = new URL(mainRead.finalUrl);
   const start = new URL(pageUrl);
-  if (final.host !== start.host) {
+  const mainRead = await fetchPage(pageUrl);
+  const mainAway = offHostLocation(mainRead.location, start);
+  if (mainAway) {
     return {
-      main: pageNote(mainRead.finalUrl, mainRead.status, ""),
+      main: pageNote(pageUrl, mainRead.status, ""),
       linked: [],
-      skipped: ["Redirect left the host you sent"],
+      skipped: [mainAway],
     };
   }
 
-  const { follow, skipped } = linksOnPage(mainRead.html, mainRead.finalUrl);
-  const linked = await Promise.all(
-    follow.map(async (url) => {
-      const read = await fetchPage(url);
-      const landed = new URL(read.finalUrl);
-      if (landed.host !== start.host) {
-        return pageNote(read.finalUrl, read.status, "");
-      }
-      return pageNote(read.finalUrl, read.status, read.html);
-    }),
-  );
+  const { follow, skipped } = linksOnPage(mainRead.html, pageUrl);
+  const reads = await Promise.all(follow.map(async (url) => ({ url, read: await fetchPage(url) })));
+  const linked: PageNote[] = [];
+  for (const item of reads) {
+    const away = offHostLocation(item.read.location, start);
+    if (away) {
+      if (skipped.length < LINK_CAP) skipped.push(away);
+      continue;
+    }
+    linked.push(pageNote(item.url, item.read.status, item.read.html));
+  }
 
   return {
-    main: pageNote(mainRead.finalUrl, mainRead.status, mainRead.html),
+    main: pageNote(pageUrl, mainRead.status, mainRead.html),
     linked,
     skipped,
   };
+}
+
+function offHostLocation(location: string | null, start: URL) {
+  if (!location) return null;
+  try {
+    const next = new URL(location, start);
+    if (next.host !== start.host) return pageKey(next);
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function pageKey(url: URL) {
@@ -98,6 +111,11 @@ function hrefs(html: string) {
   const pattern = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/gi;
   for (const match of html.matchAll(pattern)) found.push(match[1]);
   return found;
+}
+
+function loopback(hostname: string) {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
 function privateHost(hostname: string) {
@@ -117,12 +135,16 @@ function privateHost(hostname: string) {
 
 async function fetchPage(url: string) {
   const response = await fetch(url, {
-    redirect: "follow",
+    redirect: "manual",
     signal: AbortSignal.timeout(8000),
     headers: { accept: "text/html" },
   });
+  const location = response.headers.get("location");
+  if (response.status >= 300 && response.status < 400) {
+    return { status: response.status, html: "", location };
+  }
   const html = (await response.text()).slice(0, BODY_CAP);
-  return { finalUrl: response.url, status: response.status, html };
+  return { status: response.status, html, location: null };
 }
 
 function titleOf(html: string) {

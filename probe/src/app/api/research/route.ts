@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "That URL is not valid." }, { status: 400 });
   }
 
-  const ownHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+  const ownHost = new URL(request.url).host;
   if (!allowedTarget(target, ownHost)) {
     return NextResponse.json(
       { ok: false, error: "That host is not available for research." },

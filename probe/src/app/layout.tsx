@@ -14,9 +14,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col">
-        <header className="border-b border-line bg-sheet">
-          <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <Link href="/" className="text-lg font-semibold text-ink no-underline">
+        <header className="sticky top-0 z-10 border-b border-line bg-paper/85 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
+            <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold text-ink no-underline">
+              <span aria-hidden="true" className="grid size-7 place-items-center bg-accent font-mono text-sm text-paper">
+                BP
+              </span>
               Breakage Probe
             </Link>
             <Suspense

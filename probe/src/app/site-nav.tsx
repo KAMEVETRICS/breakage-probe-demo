@@ -15,12 +15,6 @@ export function SiteNav() {
       <Link href={hrefWithFixes("/demo", fixes)} className="inline-flex min-h-11 items-center">
         Demo app
       </Link>
-      <a
-        href="https://lablab-ibm-bob-2-hackathon-guide.s3.us.cloud-object-storage.appdomain.cloud/index.html"
-        className="inline-flex min-h-11 items-center"
-      >
-        Hackathon guide
-      </a>
     </nav>
   );
 }

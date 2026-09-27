@@ -48,9 +48,8 @@ export function ResearchPanel() {
   }
 
   return (
-    <section className="mt-10 border border-line bg-sheet p-4">
-      <h2 className="text-2xl font-semibold">Read a page and the links on it</h2>
-      <p className="mt-2 max-w-2xl text-sm text-muted">
+    <section className="pt-4">
+      <p className="max-w-2xl text-sm text-muted">
         One agent reads the URL you send. The others read only the links written on that page, and only when the link stays on the same host. Links to other sites are listed and left unread.
       </p>
       <form
@@ -63,7 +62,7 @@ export function ResearchPanel() {
         <label className="block min-w-64 flex-1 text-sm">
           URL
           <input
-            className="mt-1 w-full border border-line bg-paper px-2 py-2"
+            className="mt-1 min-h-11 w-full border border-line bg-paper px-2 py-2 text-ink"
             value={url}
             placeholder="Leave blank to read this site"
             onChange={(event) => setUrl(event.target.value)}
@@ -73,7 +72,7 @@ export function ResearchPanel() {
         <button
           type="submit"
           disabled={running}
-          className="inline-flex min-h-11 items-center border border-ink bg-ink px-4 text-sheet disabled:opacity-60"
+          className="inline-flex min-h-11 items-center border border-accent bg-accent px-4 font-semibold text-paper disabled:opacity-60"
         >
           {running ? "Reading" : "Read page and links"}
         </button>

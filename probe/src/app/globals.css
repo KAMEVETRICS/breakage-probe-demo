@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f2eee6;
-  --sheet: #fffcf7;
-  --ink: #1b1814;
-  --muted: #5b5348;
-  --line: #d7cec0;
-  --accent: #9a3412;
-  --pass: #0f6b3c;
-  --pass-bg: #d9eee1;
-  --fail: #9b1c1c;
-  --fail-bg: #f8e2e2;
-  --warn: #92400e;
-  --warn-bg: #f6e7c8;
+  --paper: #0d1015;
+  --sheet: #151a21;
+  --raised: #1c222b;
+  --ink: #e8edf2;
+  --muted: #9aa5b1;
+  --line: #2a323d;
+  --accent: #f2a93b;
+  --pass: #4ccb7a;
+  --pass-bg: #10291b;
+  --fail: #ff7a70;
+  --fail-bg: #2e1517;
+  --warn: #e8c15a;
+  --warn-bg: #2a2211;
 }
 
 @theme inline {
   --color-paper: var(--paper);
   --color-sheet: var(--sheet);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
@@ -28,30 +30,68 @@
   --color-fail-bg: var(--fail-bg);
   --color-warn: var(--warn);
   --color-warn-bg: var(--warn-bg);
-  --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-sans: "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 
-* {
-  box-sizing: border-box;
+/* In a layer, so Tailwind utilities (text-*, bg-*) on links still win. */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(60rem 30rem at 85% -10%, rgb(242 169 59 / 0.08), transparent 70%),
+      var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
 }
 
-body {
-  margin: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-sans);
+@keyframes probe-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
 }
 
-a {
-  color: var(--accent);
+.probe-scan {
+  position: relative;
+  overflow: hidden;
 }
 
-a:hover {
-  text-decoration-thickness: 2px;
+.probe-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(242 169 59 / 0.18), transparent);
+  animation: probe-scan 1.1s linear infinite;
 }
 
-:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
+@media (prefers-reduced-motion: reduce) {
+  .probe-scan::after {
+    animation: none;
+  }
 }

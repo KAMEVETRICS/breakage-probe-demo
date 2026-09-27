@@ -12,6 +12,7 @@ type Finding = {
   expected: string;
   actual: string;
   repro: string[];
+  file?: string;
 };
 
 type AgentResult = {
@@ -37,18 +38,35 @@ export type Report = {
   agents: AgentResult[];
 };
 
-function statusClass(status: string) {
-  return status === "passed"
-    ? "border-pass bg-pass-bg text-pass"
-    : "border-fail bg-fail-bg text-fail";
-}
+// What each lane checks, shown whether it passes or fails.
+const LANES: Record<string, { label: string; request: string; expect: string; file: string }> = {
+  "cart-probe": {
+    label: "Cart total",
+    request: "POST /api/cart/total · 2 × $10 + 1 × $15",
+    expect: "total 35",
+    file: "src/app/api/cart/total/route.ts",
+  },
+  "auth-probe": {
+    label: "Login",
+    request: "POST /api/auth/login · password “ship”",
+    expect: "rejected (401)",
+    file: "src/app/api/auth/login/route.ts",
+  },
+  "search-probe": {
+    label: "Category search",
+    request: "GET /api/search?category=kitchen",
+    expect: "2 kitchen items",
+    file: "src/app/api/search/route.ts",
+  },
+};
+
+const MIN_RUN_MS = 900;
 
 function laneChange(before: Report | null, after: Report | null, id: string) {
   const previous = before?.agents.find((agent) => agent.id === id);
   const current = after?.agents.find((agent) => agent.id === id);
   if (!previous || !current || previous.status === current.status) return "";
-  if (current.status === "passed") return "This lane was failing. It passes with the fixes now on.";
-  return "This lane was passing. It fails with the fixes now on.";
+  return current.status === "passed" ? "Now passing" : "Now failing";
 }
 
 export function ReportView({ initialReport }: { initialReport: Report | null }) {
@@ -62,11 +80,15 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
     setRunning(true);
     setError("");
     try {
-      const response = await fetch("/api/probes/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fixes }),
-      });
+      // Keep the lanes visibly "running" for a moment even when the app answers instantly.
+      const [response] = await Promise.all([
+        fetch("/api/probes/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fixes }),
+        }),
+        new Promise((resolve) => setTimeout(resolve, MIN_RUN_MS)),
+      ]);
       const data = (await response.json()) as { ok?: boolean; error?: string; report?: Report };
       if (!response.ok || !data.ok || !data.report) {
         throw new Error(data.error ?? "Probe run failed");
@@ -80,115 +102,155 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
     }
   }
 
+  const agents = report?.agents ?? [];
+  const laneIds = agents.length > 0 ? agents.map((agent) => agent.id) : Object.keys(LANES);
+
   return (
-    <>
-      <fieldset className="mb-4 w-full border border-line bg-sheet p-4">
-        <legend className="px-1 text-sm font-semibold">Apply a fix, then run the probes again</legend>
-        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
-          {FIX_IDS.map((id) => (
-            <label key={id} className="inline-flex min-h-11 items-center gap-2">
-              <input
-                type="checkbox"
-                checked={fixes.includes(id)}
-                onChange={() => toggle(id)}
-              />
-              {FIX_LABELS[id]}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <button
-        type="button"
-        onClick={run}
-        disabled={running}
-        className="inline-flex min-h-11 items-center border border-ink bg-ink px-4 text-sheet disabled:opacity-60"
-      >
-        {running ? "Probes running" : "Run parallel probes"}
-      </button>
+    <section id="report" className="mt-8 w-full scroll-mt-20">
+      <div className="flex flex-col gap-4 border border-line bg-sheet p-4 sm:flex-row sm:items-center sm:justify-between">
+        <fieldset className="min-w-0">
+          <legend className="text-xs font-semibold uppercase tracking-widest text-muted">
+            Fixes applied to the app
+          </legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {FIX_IDS.map((id) => {
+              const on = fixes.includes(id);
+              return (
+                <label
+                  key={id}
+                  className={`inline-flex min-h-11 cursor-pointer items-center gap-2 border px-3 text-sm transition-colors ${
+                    on ? "border-pass bg-pass-bg text-pass" : "border-line bg-raised text-ink hover:border-muted"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-[var(--pass)]"
+                    checked={on}
+                    onChange={() => toggle(id)}
+                  />
+                  {FIX_LABELS[id]}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+        <button
+          type="button"
+          onClick={run}
+          disabled={running}
+          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 bg-accent px-6 text-base font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-70"
+        >
+          <span aria-hidden="true">{running ? "◌" : "▶"}</span>
+          {running ? "Probes running…" : "Run parallel probes"}
+        </button>
+      </div>
+
       {error ? (
-        <p className="basis-full text-sm text-fail" role="alert">
+        <p className="mt-3 border-l-4 border-fail bg-fail-bg px-3 py-2 text-sm text-fail" role="alert">
           {error}
         </p>
       ) : null}
 
-      <section id="report" className="mt-10 w-full">
-        <h2 className="text-2xl font-semibold">Latest breakage report</h2>
-        {!report ? (
-          <div className="mt-4 border-l-4 border-warn bg-warn-bg px-4 py-3" role="status">
-            <p className="font-semibold text-warn">No report yet</p>
-            <p className="mt-1 text-sm text-muted">Press Run parallel probes.</p>
-          </div>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-muted">
-              Source: <span className="font-mono text-ink">{report.source}</span>
-              {" · "}
-              Generated: {new Date(report.generatedAt).toLocaleString()}
-              {" · "}
-              Target: {report.appBaseUrl}
-            </p>
-            <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-              <li className="border border-line bg-sheet p-4">
-                <p className="text-sm text-muted">Agents</p>
-                <p className="text-3xl font-semibold">{report.summary.agents}</p>
-              </li>
-              <li className="border border-line bg-sheet p-4">
-                <p className="text-sm text-muted">Failed</p>
-                <p className="text-3xl font-semibold text-fail">{report.summary.failed}</p>
-              </li>
-              <li className="border border-line bg-sheet p-4">
-                <p className="text-sm text-muted">Findings</p>
-                <p className="text-3xl font-semibold">{report.summary.findings}</p>
-              </li>
-            </ul>
-            <div className="mt-6 space-y-4">
-              {report.agents.map((agent) => {
-                const change = laneChange(previous, report, agent.id);
-                return (
-                <article key={agent.id} className="border border-line bg-sheet p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-xl font-semibold">{agent.name}</h3>
-                    <p
-                      className={`border px-2 py-1 text-sm uppercase tracking-wide ${statusClass(agent.status)}`}
-                    >
-                      {agent.status}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-sm text-muted">
-                    {agent.mode}
-                    {agent.durationMs != null ? ` · ${agent.durationMs} ms` : ""}
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-2xl font-semibold">Probe lanes</h2>
+        {report ? (
+          <p className="text-sm text-muted" aria-live="polite">
+            <span className={report.summary.failed > 0 ? "font-semibold text-fail" : "font-semibold text-pass"}>
+              {report.summary.failed > 0
+                ? `${report.summary.failed} of ${report.summary.agents} failing`
+                : `All ${report.summary.agents} passing`}
+            </span>
+            {" · "}
+            {report.source === "bob-parallel-subagents" ? "written by IBM Bob’s subagents" : "run from this page"}
+            {" · "}
+            {new Date(report.generatedAt).toLocaleString()}
+          </p>
+        ) : null}
+      </div>
+
+      {!report && !running ? (
+        <p className="mt-3 text-sm text-muted">No report yet. Press Run parallel probes.</p>
+      ) : null}
+
+      <ul className="mt-4 grid gap-4 lg:grid-cols-3">
+        {laneIds.map((id) => {
+          const agent = agents.find((item) => item.id === id);
+          const lane = LANES[id];
+          const finding = agent?.findings[0];
+          const passed = agent?.status === "passed";
+          const change = laneChange(previous, report, id);
+          const bar = running ? "bg-accent" : !agent ? "bg-line" : passed ? "bg-pass" : "bg-fail";
+          return (
+            <li
+              key={id}
+              className={`flex flex-col border border-line bg-sheet p-4 ${running ? "probe-scan" : ""}`}
+            >
+              <div aria-hidden="true" className={`-mx-4 -mt-4 mb-4 h-1 ${bar}`} />
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted">{agent?.name ?? id}</p>
+                  <h3 className="mt-1 text-xl font-semibold">{lane?.label ?? agent?.name}</h3>
+                </div>
+                <p
+                  className={`shrink-0 border px-2 py-1 text-xs font-semibold uppercase tracking-widest ${
+                    running
+                      ? "border-accent text-accent"
+                      : passed
+                        ? "border-pass bg-pass-bg text-pass"
+                        : agent
+                          ? "border-fail bg-fail-bg text-fail"
+                          : "border-line text-muted"
+                  }`}
+                >
+                  {running ? "Running" : agent ? (passed ? "Pass" : "Fail") : "Idle"}
+                </p>
+              </div>
+
+              {lane ? <p className="mt-2 font-mono text-xs text-muted">{lane.request}</p> : null}
+
+              <dl className="mt-4 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-2">
+                <dt className="text-xs uppercase tracking-widest text-muted">Expected</dt>
+                <dd className="font-mono text-lg">{lane?.expect ?? finding?.expected ?? "—"}</dd>
+                <dt className="text-xs uppercase tracking-widest text-muted">Got</dt>
+                <dd
+                  className={`font-mono text-lg font-semibold ${
+                    running ? "text-muted" : passed ? "text-pass" : agent ? "text-fail" : "text-muted"
+                  }`}
+                >
+                  {running ? "…" : !agent ? "—" : passed ? "as expected" : (finding?.actual ?? "wrong result")}
+                </dd>
+              </dl>
+
+              {!running && change ? (
+                <p className={`mt-3 text-sm font-semibold ${passed ? "text-pass" : "text-fail"}`}>{change}</p>
+              ) : null}
+
+              {!running && finding ? (
+                <div className="mt-4 border-t border-line pt-3 text-sm">
+                  <p className="font-semibold">
+                    {finding.id} · {finding.title}
                   </p>
-                  {change ? <p className="mt-2 text-sm font-semibold">{change}</p> : null}
-                  {agent.findings.length === 0 ? (
-                    <p className="mt-3 text-pass">No breakages in this lane.</p>
-                  ) : (
-                    <ul className="mt-3 space-y-3">
-                      {agent.findings.map((finding) => (
-                        <li key={finding.id} className="border-l-4 border-fail bg-fail-bg px-3 py-2">
-                          <p className="font-semibold">
-                            {finding.id}: {finding.title}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            Severity: {finding.severity} · {finding.endpoint}
-                          </p>
-                          <p className="mt-1 text-sm">Expected: {finding.expected}</p>
-                          <p className="text-sm">Actual: {finding.actual}</p>
-                          <ol className="mt-2 list-decimal pl-5 text-sm text-muted">
-                            {finding.repro.map((step) => (
-                              <li key={step}>{step}</li>
-                            ))}
-                          </ol>
-                        </li>
+                  <p className="mt-1 text-muted">
+                    Severity {finding.severity} · <span className="font-mono">{finding.file ?? lane?.file}</span>
+                  </p>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-muted hover:text-ink">Steps to repeat</summary>
+                    <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted">
+                      {finding.repro.map((step) => (
+                        <li key={step}>{step}</li>
                       ))}
-                    </ul>
-                  )}
-                </article>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </section>
-    </>
+                    </ol>
+                  </details>
+                </div>
+              ) : null}
+
+              {agent?.durationMs != null && !running ? (
+                <p className="mt-auto pt-3 text-xs text-muted">{agent.durationMs} ms</p>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

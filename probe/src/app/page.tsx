@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { FixLink } from "./fix-link";
 import { ReportView, type Report } from "./report-view";
+import { ResearchPanel } from "./research-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function Home() {
       </section>
 
       <ReportView initialReport={report} />
+      <ResearchPanel />
     </main>
   );
 }

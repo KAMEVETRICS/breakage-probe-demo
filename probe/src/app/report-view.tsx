@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const FIXES = [
-  { id: "cart", label: "Fix cart total" },
-  { id: "auth", label: "Fix login" },
-  { id: "search", label: "Fix search filter" },
-] as const;
-
-const STORAGE_KEY = "probe-fixes";
+import { useState } from "react";
+import { FIX_IDS, FIX_LABELS } from "../fixes";
+import { useFixes } from "./use-fixes";
 
 type Finding = {
   id: string;
@@ -58,32 +52,11 @@ function laneChange(before: Report | null, after: Report | null, id: string) {
 }
 
 export function ReportView({ initialReport }: { initialReport: Report | null }) {
+  const { fixes, toggle } = useFixes();
   const [report, setReport] = useState(initialReport);
   const [previous, setPrevious] = useState<Report | null>(null);
-  const [fixes, setFixes] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as unknown;
-      if (Array.isArray(parsed)) {
-        setFixes(parsed.filter((item): item is string => typeof item === "string"));
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  function toggleFix(id: string) {
-    setFixes((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }
 
   async function run() {
     setRunning(true);
@@ -112,14 +85,14 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
       <fieldset className="mb-4 w-full border border-line bg-sheet p-4">
         <legend className="px-1 text-sm font-semibold">Apply a fix, then run the probes again</legend>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
-          {FIXES.map((fix) => (
-            <label key={fix.id} className="inline-flex min-h-11 items-center gap-2">
+          {FIX_IDS.map((id) => (
+            <label key={id} className="inline-flex min-h-11 items-center gap-2">
               <input
                 type="checkbox"
-                checked={fixes.includes(fix.id)}
-                onChange={() => toggleFix(fix.id)}
+                checked={fixes.includes(id)}
+                onChange={() => toggle(id)}
               />
-              {fix.label}
+              {FIX_LABELS[id]}
             </label>
           ))}
         </div>
@@ -169,7 +142,9 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
               </li>
             </ul>
             <div className="mt-6 space-y-4">
-              {report.agents.map((agent) => (
+              {report.agents.map((agent) => {
+                const change = laneChange(previous, report, agent.id);
+                return (
                 <article key={agent.id} className="border border-line bg-sheet p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h3 className="text-xl font-semibold">{agent.name}</h3>
@@ -183,9 +158,7 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
                     {agent.mode}
                     {agent.durationMs != null ? ` · ${agent.durationMs} ms` : ""}
                   </p>
-                  {laneChange(previous, report, agent.id) ? (
-                    <p className="mt-2 text-sm font-semibold">{laneChange(previous, report, agent.id)}</p>
-                  ) : null}
+                  {change ? <p className="mt-2 text-sm font-semibold">{change}</p> : null}
                   {agent.findings.length === 0 ? (
                     <p className="mt-3 text-pass">No breakages in this lane.</p>
                   ) : (
@@ -210,7 +183,8 @@ export function ReportView({ initialReport }: { initialReport: Report | null }) 
                     </ul>
                   )}
                 </article>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

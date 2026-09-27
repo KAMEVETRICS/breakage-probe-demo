@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { fixHeaders } from "../../fixes";
+import { useFixes } from "../use-fixes";
 
 type SearchHit = {
   id: string;
@@ -18,28 +20,15 @@ export default function DemoPage() {
   const [category, setCategory] = useState("kitchen");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [error, setError] = useState("");
-
-  function fixHeaders() {
-    let value = "";
-    try {
-      const saved = window.localStorage.getItem("probe-fixes");
-      const parsed = saved ? (JSON.parse(saved) as unknown) : [];
-      if (Array.isArray(parsed)) value = parsed.join(",");
-    } catch {
-      value = "";
-    }
-    return {
-      "Content-Type": "application/json",
-      "x-probe-fixes": value,
-    };
-  }
+  const { fixes } = useFixes();
+  const headers = fixHeaders(fixes);
 
   async function runCart() {
     setError("");
     try {
       const response = await fetch("/api/cart/total", {
         method: "POST",
-        headers: fixHeaders(),
+        headers,
         body: JSON.stringify({
           items: [
             { id: "1", price: 10, qty: 2 },
@@ -60,7 +49,7 @@ export default function DemoPage() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: fixHeaders(),
+        headers,
         body: JSON.stringify({ email: "buyer@demo.test", password }),
       });
       const data = (await response.json()) as { ok?: boolean; error?: string };
@@ -80,7 +69,7 @@ export default function DemoPage() {
     try {
       const response = await fetch(
         `/api/search?q=&category=${encodeURIComponent(category)}`,
-        { headers: fixHeaders() },
+        { headers },
       );
       const data = (await response.json()) as { results: SearchHit[] };
       setHits(data.results);
@@ -94,7 +83,7 @@ export default function DemoPage() {
       <p className="text-sm uppercase tracking-wide text-muted">Target app</p>
       <h1 className="mt-1 text-3xl font-semibold">Demo storefront with planted bugs</h1>
       <p className="mt-2 max-w-2xl text-muted">
-        Fixes checked on the dashboard apply here too, in this browser.
+        The fix switches on the dashboard are kept in the page address, so this storefront uses the same ones.
       </p>
       <p className="mt-2 max-w-2xl text-muted">
         Use these flows as the system under test. Breakage Probe&apos;s parallel agents

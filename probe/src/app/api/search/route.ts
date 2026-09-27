@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasFix } from "../../../fixes";
 
 const CATALOG = [
   { id: "sku-1", name: "Trail Flask", category: "gear", price: 24 },
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").toLowerCase();
   const category = searchParams.get("category");
-  const fixed = (request.headers.get("x-probe-fixes") ?? "").split(",").includes("search");
+  const fixed = hasFix(request, "search");
 
   const results = CATALOG.filter((item) => {
     if (q && !item.name.toLowerCase().includes(q)) return false;

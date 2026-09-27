@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { SiteNav } from "./site-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,23 +19,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-lg font-semibold text-ink no-underline">
               Breakage Probe
             </Link>
-            <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Main">
-              <Link href="/" className="inline-flex min-h-11 items-center">
-                Dashboard
-              </Link>
-              <Link href="/demo" className="inline-flex min-h-11 items-center">
-                Demo app
-              </Link>
-              <a
-                href="https://lablab-ibm-bob-2-hackathon-guide.s3.us.cloud-object-storage.appdomain.cloud/index.html"
-                className="inline-flex min-h-11 items-center"
-              >
-                Hackathon guide
-              </a>
-            </nav>
+            <Suspense
+              fallback={
+                <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Main">
+                  <Link href="/" className="inline-flex min-h-11 items-center">
+                    Dashboard
+                  </Link>
+                  <Link href="/demo" className="inline-flex min-h-11 items-center">
+                    Demo app
+                  </Link>
+                </nav>
+              }
+            >
+              <SiteNav />
+            </Suspense>
           </div>
         </header>
-        <div className="flex flex-1 flex-col">{children}</div>
+        <Suspense>
+          <div className="flex flex-1 flex-col">{children}</div>
+        </Suspense>
       </body>
     </html>
   );

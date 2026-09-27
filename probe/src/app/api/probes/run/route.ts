@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { type FixId, fixHeaders, parseFixes } from "../../../../fixes";
 
 export const dynamic = "force-dynamic";
 
@@ -28,18 +29,11 @@ function baseUrlFrom(request: Request) {
   return `${proto}://${host}`;
 }
 
-function probeHeaders(fixes: string[]) {
-  return {
-    "Content-Type": "application/json",
-    "x-probe-fixes": fixes.join(","),
-  };
-}
-
-async function probeCart(baseUrl: string, fixes: string[]): Promise<AgentResult> {
+async function probeCart(baseUrl: string, fixes: FixId[]): Promise<AgentResult> {
   const started = Date.now();
   const response = await fetch(`${baseUrl}/api/cart/total`, {
     method: "POST",
-    headers: probeHeaders(fixes),
+    headers: fixHeaders(fixes),
     body: JSON.stringify({
       items: [
         { id: "1", price: 10, qty: 2 },
@@ -74,11 +68,11 @@ async function probeCart(baseUrl: string, fixes: string[]): Promise<AgentResult>
   };
 }
 
-async function probeAuth(baseUrl: string, fixes: string[]): Promise<AgentResult> {
+async function probeAuth(baseUrl: string, fixes: FixId[]): Promise<AgentResult> {
   const started = Date.now();
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
-    headers: probeHeaders(fixes),
+    headers: fixHeaders(fixes),
     body: JSON.stringify({ email: "buyer@demo.test", password: "ship" }),
   });
   const data = (await response.json()) as { ok?: boolean };
@@ -108,10 +102,10 @@ async function probeAuth(baseUrl: string, fixes: string[]): Promise<AgentResult>
   };
 }
 
-async function probeSearch(baseUrl: string, fixes: string[]): Promise<AgentResult> {
+async function probeSearch(baseUrl: string, fixes: FixId[]): Promise<AgentResult> {
   const started = Date.now();
   const response = await fetch(`${baseUrl}/api/search?q=&category=kitchen`, {
-    headers: probeHeaders(fixes),
+    headers: fixHeaders(fixes),
   });
   const data = (await response.json()) as {
     count?: number;
@@ -150,9 +144,7 @@ async function probeSearch(baseUrl: string, fixes: string[]): Promise<AgentResul
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { fixes?: unknown };
-    const fixes = Array.isArray(body.fixes)
-      ? body.fixes.filter((item): item is string => typeof item === "string")
-      : [];
+    const fixes = parseFixes(body.fixes);
     const baseUrl = baseUrlFrom(request);
     const agents = await Promise.all([
       probeCart(baseUrl, fixes),

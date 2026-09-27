@@ -17,7 +17,7 @@ npm.cmd run dev
 - Dashboard: http://127.0.0.1:3000
 - Storefront: http://127.0.0.1:3000/demo
 
-Press **Run parallel probes** on the dashboard. From another terminal, `npm.cmd run probe` writes the same result to `probe/reports/breakage-latest.json`.
+Press **Run parallel probes** on the dashboard. The checked fixes stay in the page address (`?fixes=cart`), and the storefront uses that same address. From another terminal, `npm.cmd run probe` asks the running app for the report and writes `probe/reports/breakage-latest.json`. `PROBE_FIXES=cart` turns on the same fixes for that command.
 
 ## Host the demo on Vercel
 

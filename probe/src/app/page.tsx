@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import Link from "next/link";
+import { FixLink } from "./fix-link";
 import { ReportView, type Report } from "./report-view";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +30,12 @@ export default async function Home() {
         contains the planted functional bugs.
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
-        <Link
+        <FixLink
           href="/demo"
           className="inline-flex min-h-11 items-center border border-accent bg-accent px-4 text-sheet no-underline"
         >
           Open demo app
-        </Link>
+        </FixLink>
         <a
           href="#report"
           className="inline-flex min-h-11 items-center border border-ink px-4 text-ink no-underline"

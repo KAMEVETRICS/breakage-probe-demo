@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2025-07-11T00:00:00.000Z",
-  "source": "bob-parallel-subagents",
+  "generatedAt": "2026-09-27T11:17:23.641Z",
+  "source": "api/probes/run",
   "appBaseUrl": "http://127.0.0.1:3000",
+  "fixes": [],
   "summary": {
     "agents": 3,
     "passed": 0,
     "failed": 3,
-    "findings": 4
+    "findings": 3
   },
   "agents": [
     {
@@ -15,7 +16,7 @@
       "name": "Cart Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": null,
+      "durationMs": 23,
       "findings": [
         {
           "id": "CART-001",
@@ -23,11 +24,10 @@
           "title": "Cart total ignores quantity",
           "endpoint": "POST /api/cart/total",
           "expected": "2×$10 + 1×$15 = $35",
-          "actual": "total returned 0 (body.items undefined due to raw-array input); even if items were wrapped, reduce only sums price and ignores qty — would return 25",
-          "file": "src/app/api/cart/total/route.ts",
+          "actual": "total returned 25",
           "repro": [
-            "POST /api/cart/total with body [{price:10,qty:2},{price:15,qty:1}]",
-            "Observe total === 0 instead of 35"
+            "POST /api/cart/total with { items: [{price:10,qty:2},{price:15,qty:1}] }",
+            "Observe total === 25 instead of 35"
           ]
         }
       ]
@@ -37,16 +37,15 @@
       "name": "Auth Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": null,
+      "durationMs": 23,
       "findings": [
         {
           "id": "AUTH-001",
           "severity": "critical",
-          "title": "Partial password accepted via startsWith",
+          "title": "Partial password is accepted",
           "endpoint": "POST /api/auth/login",
-          "expected": "Only the full password 'shipit-now' should authenticate",
-          "actual": "password 'ship' returned ok:true — any prefix of 'shipit-now' is accepted",
-          "file": "src/app/api/auth/login/route.ts",
+          "expected": "Only the full password shipit-now should authenticate",
+          "actual": "password ship returned ok:true",
           "repro": [
             "POST /api/auth/login with email buyer@demo.test and password ship",
             "Observe 200 with ok:true"
@@ -59,19 +58,18 @@
       "name": "Search Probe",
       "mode": "parallel-subagent",
       "status": "failed",
-      "durationMs": null,
+      "durationMs": 20,
       "findings": [
         {
           "id": "SEARCH-001",
           "severity": "medium",
-          "title": "Category filter is ignored (void category)",
+          "title": "Category filter is ignored",
           "endpoint": "GET /api/search",
-          "expected": "category=kitchen returns only 2 kitchen items",
-          "actual": "All 4 catalog items returned — gear items Trail Flask and Ridge Jacket included",
-          "file": "src/app/api/search/route.ts",
+          "expected": "category=kitchen returns 2 kitchen items",
+          "actual": "returned 4 items",
           "repro": [
             "GET /api/search?q=&category=kitchen",
-            "Observe 4 items instead of 2; gear items present"
+            "Observe gear items present or count !== 2"
           ]
         }
       ]

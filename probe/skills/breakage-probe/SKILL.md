@@ -11,7 +11,7 @@ Run three focused probes in parallel against the local demo app, write `reports/
 Launch these subagents together. Do not run them one after another unless parallel execution is unavailable.
 
 1. **Cart Probe**
-   - Hit `POST /api/cart/total` with `[{price:10,qty:2},{price:15,qty:1}]`
+   - Hit `POST /api/cart/total` with the body `{"items":[{"id":"1","price":10,"qty":2},{"id":"2","price":15,"qty":1}]}`. The route reads `items`; a bare array is not a valid request.
    - Expect total `35`
    - If wrong, explain the bug and point at `src/app/api/cart/total/route.ts`
 
@@ -30,7 +30,7 @@ Launch these subagents together. Do not run them one after another unless parall
 If the Next.js app is already on `http://127.0.0.1:3000`, the dashboard button **Run parallel probes** calls the same runner. You may also run:
 
 ```bash
-npm.cmd run probe
+npm run probe
 ```
 
 That script uses `Promise.all` for the same three probes and overwrites `reports/breakage-latest.json`.

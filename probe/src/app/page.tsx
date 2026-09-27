@@ -48,7 +48,7 @@ export default async function Home() {
       <section className="mt-10 border border-line bg-sheet p-4">
         <h2 className="text-2xl font-semibold">How Bob should run this</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted">
-          <li>Start the app with <code className="font-mono text-ink">npm.cmd run dev</code>.</li>
+          <li>Start the app with <code className="font-mono text-ink">npm run dev</code>.</li>
           <li>
             In Bob IDE, open this <code className="font-mono text-ink">probe</code> folder and
             follow <code className="font-mono text-ink">skills/breakage-probe/SKILL.md</code>.

@@ -1,5 +1,7 @@
 # Breakage Probe
 
+Live demo: https://probe-liard.vercel.app (storefront: https://probe-liard.vercel.app/demo)
+
 A sample storefront with three functional bugs, and a dashboard that checks those paths in parallel.
 
 The cart route adds each price once and ignores quantity, so two items at $10 and one at $15 come back as $25 instead of $35. The login route accepts any prefix of the sample password `shipit-now`, so `ship` signs in. The search route reads `category` and then discards it, so `category=kitchen` returns all four products.
@@ -12,14 +14,14 @@ The dashboard runs those three checks together and lists each failure with the r
 
 ```bash
 cd probe
-npm.cmd install
-npm.cmd run dev
+npm install
+npm run dev
 ```
 
 - Dashboard: http://127.0.0.1:3000
 - Storefront: http://127.0.0.1:3000/demo
 
-Press **Run parallel probes** on the dashboard. The checked fixes stay in the page address (`?fixes=cart`), and the storefront uses that same address. From another terminal, `npm.cmd run probe` asks the running app for the report and writes `probe/reports/breakage-latest.json`. `PROBE_FIXES=cart` turns on the same fixes for that command.
+Press **Run parallel probes** on the dashboard. The checked fixes stay in the page address (`?fixes=cart`), and the storefront uses that same address. From another terminal, `npm run probe` asks the running app for the report and writes `probe/reports/breakage-latest.json`. `PROBE_FIXES=cart` turns on the same fixes for that command.
 
 ## Host the demo on Vercel
 

@@ -23,10 +23,10 @@ Hackathon project for IBM Bob 2.0. The product is a parallel-agent workflow that
 
 ## Default workflow
 
-1. `npm.cmd run dev`
+1. `npm run dev`
 2. Follow `skills/breakage-probe/SKILL.md`
 3. Launch Cart, Auth, and Search probes as parallel subagents
-4. Or run `npm.cmd run probe` while the app is up
+4. Or run `npm run probe` while the app is up
 5. Refresh `/` to read the report
 
 ## Security
